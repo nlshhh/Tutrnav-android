@@ -1,48 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#6555C0"
+    android:fillViewport="true"
     android:scrollbars="none">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="24dp"
-        android:paddingBottom="100dp"> <!-- Added padding bottom so content isn't hidden by nav bar -->
+        android:paddingBottom="120dp"> <!-- Extra padding so content isn't hidden behind bottom nav -->
 
-        <!-- SEARCH BAR -->
+        <!-- 1. SEARCH BAR -->
         <androidx.cardview.widget.CardView
             android:id="@+id/searchCard"
             android:layout_width="match_parent"
             android:layout_height="55dp"
+            android:layout_marginHorizontal="24dp"
             android:layout_marginTop="10dp"
             app:cardCornerRadius="15dp"
             app:cardBackgroundColor="#52439A"
             app:cardElevation="0dp"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="15dp">
+
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Master Shifu's Dojo"
                     android:textColor="#9FA8DA"
-                    android:textSize="16sp"/>
+                    android:textSize="16sp" />
+
                 <ImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:src="@android:drawable/ic_menu_search"
-                    app:tint="#9FA8DA"/>
+                    app:tint="#9FA8DA" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- CATEGORIES -->
+        <!-- 2. CATEGORIES TITLE -->
         <TextView
             android:id="@+id/tvCategories"
             android:layout_width="wrap_content"
@@ -52,107 +59,251 @@
             android:textColor="#FFFFFF"
             android:textStyle="bold"
             android:layout_marginTop="30dp"
+            android:layout_marginStart="24dp"
             app:layout_constraintTop_toBottomOf="@id/searchCard"
-            app:layout_constraintStart_toStartOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent" />
 
-        <LinearLayout
-            android:id="@+id/categoryContainer"
+        <!-- 3. SCROLLABLE CATEGORIES LIST -->
+        <HorizontalScrollView
+            android:id="@+id/hsvCategories"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginTop="15dp"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:paddingStart="24dp"
+            android:paddingEnd="4dp"
             app:layout_constraintTop_toBottomOf="@id/tvCategories">
 
-            <!-- Item 1: Music -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-                <androidx.cardview.widget.CardView
-                    android:layout_width="70dp"
-                    android:layout_height="70dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardBackgroundColor="#FFD54F"/>
-                <!-- FIXED: Added width/height here -->
-                <TextView
+                android:orientation="horizontal">
+
+                <!-- Item 1: Music -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Music"
-                    android:textColor="#FFF"
-                    android:layout_marginTop="8dp"
-                    android:textSize="12sp"/>
-            </LinearLayout>
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#FFD54F"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Music"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
 
-            <!-- Item 2: Grade 9 -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-                <androidx.cardview.widget.CardView
-                    android:layout_width="70dp"
-                    android:layout_height="70dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardBackgroundColor="#A1887F"/>
-                <!-- FIXED: Added width/height here -->
-                <TextView
+                <!-- Item 2: Grade 9 -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Grade 9"
-                    android:textColor="#FFF"
-                    android:layout_marginTop="8dp"
-                    android:textSize="12sp"/>
-            </LinearLayout>
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#A1887F"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Grade 9"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
 
-            <!-- Item 3: Dance -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-                <androidx.cardview.widget.CardView
-                    android:layout_width="70dp"
-                    android:layout_height="70dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardBackgroundColor="#90CAF9"/>
-                <!-- FIXED: Added width/height here -->
-                <TextView
+                <!-- Item 3: Dance -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Dance"
-                    android:textColor="#FFF"
-                    android:layout_marginTop="8dp"
-                    android:textSize="12sp"/>
-            </LinearLayout>
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#90CAF9"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Dance"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
 
-            <!-- Item 4: Sports -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="vertical">
-                <androidx.cardview.widget.CardView
-                    android:layout_width="70dp"
-                    android:layout_height="70dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardBackgroundColor="#FF8A65"/>
-                <!-- FIXED: Added width/height here -->
-                <TextView
+                <!-- Item 4: Sports -->
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Sports"
-                    android:textColor="#FFF"
-                    android:layout_marginTop="8dp"
-                    android:textSize="12sp"/>
-            </LinearLayout>
-        </LinearLayout>
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#FF8A65"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Sports"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
 
-        <!-- DISCOVER -->
+                <!-- Item 5: Coding -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#81C784"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Coding"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <!-- Item 6: Art -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#F06292"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Art"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <!-- Item 7: Math -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#BA68C8"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Math"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <!-- Item 8: Science -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#4DB6AC"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Science"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <!-- Item 9: Yoga -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#AED581"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Yoga"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <!-- Item 10: Cooking -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="20dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="70dp"
+                        android:layout_height="70dp"
+                        app:cardCornerRadius="18dp"
+                        app:cardBackgroundColor="#FFB74D"
+                        app:cardElevation="0dp"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cooking"
+                        android:textColor="#FFF"
+                        android:layout_marginTop="8dp"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- 4. DISCOVER SECTION (The Carousel) -->
         <TextView
             android:id="@+id/tvDiscover"
             android:layout_width="wrap_content"
@@ -162,18 +313,22 @@
             android:textColor="#FFFFFF"
             android:textStyle="bold"
             android:layout_marginTop="30dp"
-            app:layout_constraintTop_toBottomOf="@id/categoryContainer"
-            app:layout_constraintStart_toStartOf="parent"/>
+            android:layout_marginStart="24dp"
+            app:layout_constraintTop_toBottomOf="@id/hsvCategories"
+            app:layout_constraintStart_toStartOf="parent" />
 
-        <androidx.cardview.widget.CardView
+        <!-- This ViewPager2 replaces the static CardView -->
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/vpDiscover"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="220dp"
             android:layout_marginTop="20dp"
-            android:layout_marginBottom="20dp"
-            app:cardCornerRadius="20dp"
-            app:cardBackgroundColor="#5D4037"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:paddingHorizontal="40dp"
             app:layout_constraintTop_toBottomOf="@id/tvDiscover"
-            app:layout_constraintStart_toStartOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

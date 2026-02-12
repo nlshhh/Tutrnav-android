@@ -53,6 +53,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.3.0")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
 
-    implementation("com.github.Dimezis:BlurView:version-2.0.6")
+    implementation("com.github.Dimezis:BlurView:version-3.2.0")
 
 }
