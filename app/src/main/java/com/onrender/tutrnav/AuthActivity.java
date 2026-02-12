@@ -3,13 +3,13 @@ package com.onrender.tutrnav;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -20,52 +20,67 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
 
-public class MainActivity extends AppCompatActivity {
+public class AuthActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;
     private GoogleSignInClient mGoogleSignInClient;
-    private Button btnGoogle;
+    private CardView btnGoogle;
+    private MaterialButton btnLoginTab, btnSignUpTab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // 1. Enable modern Edge-to-Edge display
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_auth);
 
-        // Handle system bar padding (for notches/status bars)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // 2. Initialize Firebase Auth
-        mAuth = FirebaseAuth.getInstance();
-        btnGoogle = findViewById(R.id.btn_google_signin);
+        // Initialize Views
+        btnGoogle = findViewById(R.id.btnGoogle);
+        btnLoginTab = findViewById(R.id.btnLoginTab); // Acts as "Login" button
+        btnSignUpTab = findViewById(R.id.btnSignUpTab); // Acts as "Sign Up" button
 
-        // 3. Configure Google Sign-In
+        mAuth = FirebaseAuth.getInstance();
+
+        // Configure Google Sign-In
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(getString(R.string.default_web_client_id))
                 .requestEmail()
                 .build();
-
         mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
 
-        // 4. Set Login Button Click Listener
+        // --- NAVIGATION LOGIC ---
+
+        // 1. Login Button -> Go to SignInActivity
+        btnLoginTab.setOnClickListener(v -> {
+            Intent intent = new Intent(AuthActivity.this, SignInActivity.class);
+            startActivity(intent);
+        });
+
+        // 2. Sign Up Button -> Go to SignUpActivity
+        btnSignUpTab.setOnClickListener(v -> {
+            Intent intent = new Intent(AuthActivity.this, SignUpActivity.class);
+            startActivity(intent);
+        });
+
+        // 3. Google Direct Login
         btnGoogle.setOnClickListener(v -> {
             Intent signInIntent = mGoogleSignInClient.getSignInIntent();
             signInLauncher.launch(signInIntent);
         });
     }
 
-    // 5. Activity Result Launcher (The modern replacement for startActivityForResult)
+    // --- GOOGLE SIGN IN LOGIC ---
     private final ActivityResultLauncher<Intent> signInLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -77,43 +92,39 @@ public class MainActivity extends AppCompatActivity {
                             firebaseAuthWithGoogle(account.getIdToken());
                         }
                     } catch (ApiException e) {
-                        Log.e("Tutrnav", "Google sign in failed", e);
-                        Toast.makeText(this, "Google Sign In Failed", Toast.LENGTH_SHORT).show();
+                        Log.e("AuthActivity", "Google Sign In Failed", e);
+                        Toast.makeText(this, "Login Failed", Toast.LENGTH_SHORT).show();
                     }
                 }
             }
     );
 
-    // 6. Firebase Authentication logic
     private void firebaseAuthWithGoogle(String idToken) {
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        // Sign in success, move to ProfileActivity
-                        navigateToProfile();
+                        FirebaseUser user = mAuth.getCurrentUser();
+                        Toast.makeText(AuthActivity.this, "Welcome " + user.getDisplayName(), Toast.LENGTH_SHORT).show();
+                        navigateToHome();
                     } else {
-                        // If sign in fails, display a message to the user.
-                        Toast.makeText(MainActivity.this, "Firebase Authentication Failed.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(AuthActivity.this, "Authentication Failed.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
-    // 7. Helper method to navigate to the second page
-    private void navigateToProfile() {
-        Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+    private void navigateToHome() {
+        Intent intent = new Intent(AuthActivity.this, StudentHomeActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
-        finish(); // Finish current activity so user can't go back to login screen
+        finish();
     }
 
-    // 8. Auto-Login Check: When the app starts, check if user is already logged in
     @Override
     protected void onStart() {
         super.onStart();
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-        if(currentUser != null) {
-            // User is already logged in, skip the login screen
-            navigateToProfile();
+        if (mAuth.getCurrentUser() != null) {
+            navigateToHome();
         }
     }
 }

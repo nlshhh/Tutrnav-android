@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- PERMISSIONS -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -10,16 +14,95 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Tutrnav">
+        android:theme="@style/Theme.Tutrnav"
+        tools:targetApi="31">
+
+        <!-- ============================================== -->
+        <!-- 1. ENTRY POINT (SPLASH SCREEN)                -->
+        <!-- ============================================== -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Tutrnav"> <!-- Uses default theme -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ============================================== -->
+        <!-- 2. ONBOARDING & AUTHENTICATION FLOW            -->
+        <!-- ============================================== -->
+        <activity
+            android:name=".OnboardingActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".AuthActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SignInActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".SignUpActivity"
+            android:exported="false" />
+
+        <!-- ============================================== -->
+        <!-- 3. MAIN DASHBOARD                              -->
+        <!-- ============================================== -->
+        <activity
+            android:name=".StudentHomeActivity"
+            android:exported="false" />
+
+        <!-- ============================================== -->
+        <!-- 4. PROFILE & SETTINGS                          -->
+        <!-- ============================================== -->
+        <activity
+            android:name=".ProfileActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ChangePasswordActivity"
+            android:exported="false" />
+
+        <!-- ============================================== -->
+        <!-- 5. FEATURES (Schedule, Maps, Notifications)    -->
+        <!-- ============================================== -->
+        <activity
+            android:name=".ScheduleActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MapsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".NotificationsActivity"
+            android:exported="false" />
+
+        <!-- 6. NOTIFICATION DETAIL (TRANSPARENT POPUP) -->
+        <activity
+            android:name=".NotificationDetailActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Transparent" />
+
+        <!-- Legacy Activity (Optional - Keep if you use it for testing) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
+        <!-- ============================================== -->
+        <!-- CONFIGURATIONS                                 -->
+        <!-- ============================================== -->
+
+        <!-- Google Maps API Key -->
+        <!-- Replace 'YOUR_API_KEY' with the key from Google Cloud Console -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE" />
+
     </application>
 
 </manifest>
