@@ -55,4 +55,12 @@ dependencies {
 
     implementation("com.github.Dimezis:BlurView:version-3.2.0")
 
+    // 1. Cloudinary (From your docs)
+    implementation("com.cloudinary:cloudinary-android:3.0.2")
+
+    // 2. Glide (For loading images)
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    // 3. Firebase Auth (Standard)
+    implementation("com.google.firebase:firebase-auth:23.0.0")
 }

@@ -9,18 +9,21 @@
     android:background="#6555C0"
     tools:context=".StudentHomeActivity">
 
-    <!-- 1. HEADER SECTION -->
+    <!-- ================= 1. HEADER SECTION ================= -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/headerContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="24dp"
         android:background="#6555C0"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="40dp"
+        android:paddingBottom="24dp"
         android:elevation="4dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- "Hi" Text -->
         <TextView
             android:id="@+id/tvHi"
             android:layout_width="wrap_content"
@@ -29,67 +32,96 @@
             android:textSize="32sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent"/>
+            app:layout_constraintHorizontal_chainStyle="packed"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/profileCard"
+            app:layout_constraintBottom_toBottomOf="@id/profileCard"
+            app:layout_constraintEnd_toStartOf="@id/tvName"
+            app:layout_constraintHorizontal_bias="0"/>
 
+        <!-- "Student" Name (Truncates if too long) -->
         <TextView
             android:id="@+id/tvName"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Student!"
             android:textSize="32sp"
             android:textColor="#FFCA28"
             android:textStyle="bold"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/tvHi"/>
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:layout_marginStart="0dp"
+            android:layout_marginEnd="16dp"
+            app:layout_constraintStart_toEndOf="@id/tvHi"
+            app:layout_constraintTop_toTopOf="@id/tvHi"
+            app:layout_constraintBottom_toBottomOf="@id/tvHi"
+            app:layout_constraintEnd_toStartOf="@id/profileCard"/>
 
+        <!-- Subtitle -->
         <TextView
             android:id="@+id/tvSubtitle"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Let's find tuitions for you"
             android:textColor="#D1C4E9"
             android:textSize="16sp"
+            android:layout_marginTop="4dp"
             app:layout_constraintTop_toBottomOf="@id/tvHi"
-            app:layout_constraintStart_toStartOf="parent"/>
+            app:layout_constraintStart_toStartOf="@id/tvHi"
+            app:layout_constraintEnd_toEndOf="@id/tvName"/>
 
+        <!-- Profile Image Card -->
         <androidx.cardview.widget.CardView
             android:id="@+id/profileCard"
             android:layout_width="50dp"
             android:layout_height="50dp"
             app:cardCornerRadius="25dp"
             app:cardBackgroundColor="#E0E0E0"
+            app:cardElevation="2dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent">
+
             <ImageView
+                android:id="@+id/imgProfileSmall"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:src="@mipmap/ic_launcher"
-                android:scaleType="centerCrop"/>
+                android:scaleType="centerCrop"
+                android:contentDescription="Profile Picture"/>
         </androidx.cardview.widget.CardView>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- 2. VIEWPAGER2 (Replaces FrameLayout) -->
-    <!-- This handles the swiping logic -->
+    <!-- ================= 2. CONTENT AREA (ViewPager) ================= -->
+    <!--
+         IMPORTANT:
+         paddingBottom="90dp" and clipToPadding="false" allow the content
+         to scroll BEHIND the floating navbar so the last item isn't hidden.
+    -->
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:paddingBottom="100dp"
+        android:clipToPadding="false"
         app:layout_constraintTop_toBottomOf="@id/headerContainer"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 3. NAVIGATION BAR (Floating above ViewPager) -->
+    <!-- ================= 3. FLOATING NAVIGATION ================= -->
     <androidx.cardview.widget.CardView
         android:id="@+id/bottomNavCard"
         android:layout_width="match_parent"
         android:layout_height="70dp"
-        android:layout_marginHorizontal="20dp"
-        android:layout_marginBottom="20dp"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginBottom="24dp"
         app:cardBackgroundColor="#2D2B45"
-        app:cardCornerRadius="25dp"
-        app:cardElevation="10dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -98,12 +130,69 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="horizontal"
-            android:gravity="center">
+            android:gravity="center"
+            android:weightSum="4">
 
-            <ImageView android:id="@+id/navHome" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:src="@android:drawable/ic_dialog_dialer" app:tint="#FFCA28"/>
-            <ImageView android:id="@+id/navSchedule" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:src="@android:drawable/ic_menu_agenda" app:tint="#5C6BC0"/>
-            <ImageView android:id="@+id/navMap" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:src="@android:drawable/ic_menu_compass" app:tint="#5C6BC0"/>
-            <ImageView android:id="@+id/navNotif" android:layout_width="0dp" android:layout_height="30dp" android:layout_weight="1" android:src="@android:drawable/ic_popup_reminder" app:tint="#5C6BC0"/>
+            <!-- Home -->
+            <ImageView
+                android:id="@+id/navHome"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_dialog_dialer"
+                app:tint="#FFCA28"
+                android:padding="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Home"/>
+
+            <!-- Schedule -->
+            <ImageView
+                android:id="@+id/navSchedule"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_agenda"
+                app:tint="#5C6BC0"
+                android:padding="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Schedule"/>
+
+            <!-- Map -->
+            <ImageView
+                android:id="@+id/navMap"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_menu_compass"
+                app:tint="#5C6BC0"
+                android:padding="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Map"/>
+
+            <!-- Notifications -->
+            <ImageView
+                android:id="@+id/navNotif"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="centerInside"
+                android:src="@android:drawable/ic_popup_reminder"
+                app:tint="#5C6BC0"
+                android:padding="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Notifications"/>
+
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 
