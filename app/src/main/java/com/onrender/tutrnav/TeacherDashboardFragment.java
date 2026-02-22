@@ -1,6 +1,8 @@
 package com.onrender.tutrnav;
 
 import android.annotation.SuppressLint;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,44 +14,32 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public class TeacherDashboardFragment extends Fragment {
 
-    // --- UI Components ---
-    private TextView tvHeroTitle, tvHeroTime;
-    private MaterialButton btnStartClass;
-    private TextView tvTotalEarnings, tvActiveStudents, tvRating, btnViewAllRequests;
+    private TextView tvHeroTitle, tvHeroTime, tvTotalEarnings, tvActiveStudents;
     private LinearLayout emptyStateView;
     private RecyclerView rvRequests;
 
-    // --- Data & Adapters ---
     private RequestAdapter adapter;
-    private List<EnrollmentModel> allEnrollments = new ArrayList<>();
     private List<EnrollmentModel> pendingRequests = new ArrayList<>();
-    private List<TuitionModel> myTuitions = new ArrayList<>();
-
-    // Quick lookup for calculating total earnings efficiently
-    private Map<String, Double> tuitionFeesMap = new HashMap<>();
-
-    // --- Firebase ---
-    private FirebaseFirestore db;
-    private FirebaseAuth mAuth;
+    private TeacherViewModel viewModel;
 
     @Nullable
     @Override
@@ -58,217 +48,178 @@ public class TeacherDashboardFragment extends Fragment {
 
         initViews(view);
 
-        db = FirebaseFirestore.getInstance();
-        mAuth = FirebaseAuth.getInstance();
-
-        if (mAuth.getCurrentUser() != null) {
-            fetchAllData();
-        }
+        // Initialize Shared ViewModel
+        viewModel = new ViewModelProvider(requireActivity()).get(TeacherViewModel.class);
+        observeData();
 
         return view;
     }
 
     private void initViews(View v) {
-        // Hero Section
         tvHeroTitle = v.findViewById(R.id.tvHeroTitle);
         tvHeroTime = v.findViewById(R.id.tvHeroTime);
-        btnStartClass = v.findViewById(R.id.btnStartClass);
-
-        // Stats Section
         tvTotalEarnings = v.findViewById(R.id.tvTotalEarnings);
         tvActiveStudents = v.findViewById(R.id.tvActiveStudents);
-        tvRating = v.findViewById(R.id.tvRating);
-
-        // Requests Section
-        btnViewAllRequests = v.findViewById(R.id.btnViewAllRequests);
         emptyStateView = v.findViewById(R.id.emptyStateView);
         rvRequests = v.findViewById(R.id.rvRequests);
 
-        // Setup RecyclerView
         rvRequests.setLayoutManager(new LinearLayoutManager(getContext()));
         rvRequests.setNestedScrollingEnabled(false);
         adapter = new RequestAdapter(pendingRequests);
         rvRequests.setAdapter(adapter);
 
-        // Setup Button Listeners
-        btnStartClass.setOnClickListener(view ->
-                Toast.makeText(getContext(), "Starting Live Room...", Toast.LENGTH_SHORT).show()
-        );
+        setupSwipeToAct();
 
-        btnViewAllRequests.setOnClickListener(view ->
-                Toast.makeText(getContext(), "Opening all requests...", Toast.LENGTH_SHORT).show()
+        v.findViewById(R.id.btnStartClass).setOnClickListener(view ->
+                Toast.makeText(getContext(), "Launching Live Broadcast...", Toast.LENGTH_SHORT).show()
         );
     }
 
-    // --- DATA FETCHING (Parallel) ---
-    private void fetchAllData() {
-        String uid = mAuth.getCurrentUser().getUid();
+    private void observeData() {
+        viewModel.getTuitions().observe(getViewLifecycleOwner(), tuitions -> {
+            updateHeroCard(tuitions);
+            recalculateStats();
+        });
 
-        // 1. Fetch Tuitions (To update Hero Card & map pricing)
-        db.collection("tuitions").whereEqualTo("teacherId", uid).get()
-                .addOnSuccessListener(snapshots -> {
-                    myTuitions.clear();
-                    tuitionFeesMap.clear();
+        viewModel.getEnrollments().observe(getViewLifecycleOwner(), enrollments -> {
+            pendingRequests.clear();
+            for (EnrollmentModel e : enrollments) {
+                if ("pending".equals(e.getStatus())) {
+                    pendingRequests.add(e);
+                }
+            }
+            adapter.notifyDataSetChanged();
 
-                    for (DocumentSnapshot doc : snapshots) {
-                        TuitionModel t = doc.toObject(TuitionModel.class);
-                        if (t != null) {
-                            myTuitions.add(t);
+            emptyStateView.setVisibility(pendingRequests.isEmpty() ? View.VISIBLE : View.GONE);
+            rvRequests.setVisibility(pendingRequests.isEmpty() ? View.GONE : View.VISIBLE);
 
-                            // Safely parse fee to a Double and store mapping by Document ID
-                            double fee = 0.0;
-                            if (t.getFee() != null && !t.getFee().isEmpty()) {
-                                try {
-                                    String cleanFee = t.getFee().replaceAll("", "");
-                                    fee = Double.parseDouble(cleanFee);
-                                } catch (NumberFormatException ignored) {}
-                            }
-                            tuitionFeesMap.put(doc.getId(), fee);
-                        }
-                    }
-                    updateHeroCard();
-                    recalculateDashboard(); // Recalculate just in case enrollments loaded first
-                });
-
-        // 2. Fetch Enrollments (To populate requests and active students)
-        db.collection("enrollments").whereEqualTo("teacherId", uid)
-                .addSnapshotListener((value, error) -> {
-                    if (error != null) {
-                        return;
-                    }
-                    if (value != null) {
-                        allEnrollments.clear();
-                        for (DocumentSnapshot doc : value) {
-                            allEnrollments.add(doc.toObject(EnrollmentModel.class));
-                        }
-                        recalculateDashboard();
-                    }
-                });
+            recalculateStats();
+        });
     }
 
-    // --- UI UPDATES ---
-    @SuppressLint("SetTextI18n")
-    private void updateHeroCard() {
-        if (!myTuitions.isEmpty()) {
-            // Just picking the first class for the Hero Card demonstration
-            TuitionModel nextClass = myTuitions.get(0);
-            tvHeroTitle.setText(nextClass.getTitle());
-            tvHeroTime.setText((nextClass.getTime() != null ? nextClass.getTime() : "Timing TBD") + " • Live");
-            btnStartClass.setVisibility(View.VISIBLE);
-        } else {
-            tvHeroTitle.setText("No Active Classes");
-            tvHeroTime.setText("Tap on My Classes to create one.");
-            btnStartClass.setVisibility(View.GONE);
-        }
-    }
+    private void recalculateStats() {
+        List<EnrollmentModel> enrollments = viewModel.getEnrollments().getValue();
+        if (enrollments == null) return;
 
-    @SuppressLint({"SetTextI18n", "NotifyDataSetChanged"})
-    private void recalculateDashboard() {
         int activeCount = 0;
         double totalEarnings = 0.0;
 
-        pendingRequests.clear();
-
-        for (EnrollmentModel e : allEnrollments) {
+        for (EnrollmentModel e : enrollments) {
             if ("approved".equals(e.getStatus())) {
                 activeCount++;
-
-                // Fetch pricing mapping using the tuition ID attached to the enrollment
-                if (e.getTuitionId() != null && tuitionFeesMap.containsKey(e.getTuitionId())) {
-                    totalEarnings += tuitionFeesMap.get(e.getTuitionId());
+                TuitionModel t = viewModel.getTuitionById(e.getTuitionId());
+                if (t != null && t.getFee() != null) {
+                    try {
+                        totalEarnings += Double.parseDouble(t.getFee().replaceAll("", ""));
+                    } catch (NumberFormatException ignored) {}
                 }
-            } else if ("pending".equals(e.getStatus())) {
-                pendingRequests.add(e);
             }
         }
 
-        // 3. Update Text UI
         tvActiveStudents.setText(String.valueOf(activeCount));
-        tvRating.setText("4.9"); // Can be updated with a real aggregation later
 
-        // Format Currency dynamically
         NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
         currencyFormat.setMaximumFractionDigits(0);
-
-        // If it's a very large number, format as k (e.g., 45k)
-        if (totalEarnings >= 1000) {
-            tvTotalEarnings.setText("₹" + (int)(totalEarnings / 1000) + "k");
-        } else {
-            tvTotalEarnings.setText(currencyFormat.format(totalEarnings));
-        }
-
-        // 4. Update Requests List & Empty State
-        adapter.notifyDataSetChanged();
-        if (pendingRequests.isEmpty()) {
-            emptyStateView.setVisibility(View.VISIBLE);
-            rvRequests.setVisibility(View.GONE);
-        } else {
-            emptyStateView.setVisibility(View.GONE);
-            rvRequests.setVisibility(View.VISIBLE);
-        }
+        tvTotalEarnings.setText(totalEarnings >= 100000 ? "₹" + (int)(totalEarnings / 1000) + "k" : currencyFormat.format(totalEarnings));
     }
 
-    private void updateStatus(String enrollmentId, String status) {
-        if (enrollmentId == null || enrollmentId.isEmpty()) return;
-
-        db.collection("enrollments").document(enrollmentId)
-                .update("status", status)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(getContext(), "Request " + status.toUpperCase(), Toast.LENGTH_SHORT).show();
-                    // Notice: No need to manually update lists here, the SnapshotListener on Enrollments
-                    // triggers instantly and `recalculateDashboard()` fires automatically.
-                })
-                .addOnFailureListener(e -> Toast.makeText(getContext(), "Failed to update", Toast.LENGTH_SHORT).show());
+    private void updateHeroCard(List<TuitionModel> tuitions) {
+        if (tuitions == null || tuitions.isEmpty()) {
+            tvHeroTitle.setText("No Active Classes");
+            tvHeroTime.setText("Go to 'My Tuition' to create one");
+            return;
+        }
+        // In a real app, parse `time` vs Current Time here.
+        // For now, we beautifully display the first item.
+        TuitionModel next = tuitions.get(0);
+        tvHeroTitle.setText(next.getTitle());
+        tvHeroTime.setText((next.getTime() != null ? next.getTime() : "TBD") + " • Hosted by you");
     }
 
-    // --- RECYCLERVIEW ADAPTER ---
+    // --- LEGENDARY SWIPE-TO-ACT UX ---
+    private void setupSwipeToAct() {
+        ItemTouchHelper.SimpleCallback callback = new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh, @NonNull RecyclerView.ViewHolder target) { return false; }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                EnrollmentModel target = pendingRequests.get(position);
+                String newStatus = (direction == ItemTouchHelper.RIGHT) ? "approved" : "rejected";
+
+                // Optimistic UI Update
+                pendingRequests.remove(position);
+                adapter.notifyItemRemoved(position);
+                emptyStateView.setVisibility(pendingRequests.isEmpty() ? View.VISIBLE : View.GONE);
+
+                FirebaseFirestore.getInstance().collection("enrollments").document(target.getEnrollmentId())
+                        .update("status", newStatus)
+                        .addOnSuccessListener(aVoid -> {
+                            Snackbar.make(requireView(), target.getStudentName() + " " + newStatus, Snackbar.LENGTH_SHORT).show();
+                        })
+                        .addOnFailureListener(e -> {
+                            // Revert on failure
+                            pendingRequests.add(position, target);
+                            adapter.notifyItemInserted(position);
+                            Toast.makeText(getContext(), "Network Error", Toast.LENGTH_SHORT).show();
+                        });
+            }
+
+            @Override
+            public void onChildDraw(@NonNull Canvas c, @NonNull RecyclerView rv, @NonNull RecyclerView.ViewHolder vh,
+                                    float dX, float dY, int actionState, boolean isCurrentlyActive) {
+                // Draws a colored background behind the swiped item
+                View itemView = vh.itemView;
+                int backgroundCornerOffset = 20;
+
+                if (dX > 0) { // Swiping to the right (Approve)
+                    c.clipRect(itemView.getLeft(), itemView.getTop(), itemView.getLeft() + ((int) dX) + backgroundCornerOffset, itemView.getBottom());
+                    c.drawColor(Color.parseColor("#4CAF50")); // Green
+                } else if (dX < 0) { // Swiping to the left (Reject)
+                    c.clipRect(itemView.getRight() + ((int) dX) - backgroundCornerOffset, itemView.getTop(), itemView.getRight(), itemView.getBottom());
+                    c.drawColor(Color.parseColor("#F44336")); // Red
+                }
+                super.onChildDraw(c, rv, vh, dX, dY, actionState, isCurrentlyActive);
+            }
+        };
+        new ItemTouchHelper(callback).attachToRecyclerView(rvRequests);
+    }
+
     private class RequestAdapter extends RecyclerView.Adapter<RequestAdapter.ViewHolder> {
         List<EnrollmentModel> list;
+        public RequestAdapter(List<EnrollmentModel> list) { this.list = list; }
 
-        public RequestAdapter(List<EnrollmentModel> list) {
-            this.list = list;
-        }
-
-        @NonNull
-        @Override
+        @NonNull @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new ViewHolder(LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_teacher_request, parent, false));
+            return new ViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_teacher_request, parent, false));
         }
 
         @SuppressLint("SetTextI18n")
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             EnrollmentModel item = list.get(position);
+            holder.tvName.setText(item.getStudentName() != null ? item.getStudentName() : "Unknown");
 
-            holder.tvName.setText(item.getStudentName() != null ? item.getStudentName() : "Unknown Student");
-            holder.tvClass.setText("Wants to join: " + (item.getTuitionTitle() != null ? item.getTuitionTitle() : "Class"));
+            TuitionModel classInfo = viewModel.getTuitionById(item.getTuitionId());
+            holder.tvClass.setText("Wants to join: " + (classInfo != null ? classInfo.getTitle() : "Your Class"));
 
-            // Safely load image with a circular crop
             if (item.getStudentPhoto() != null && !item.getStudentPhoto().isEmpty()) {
-                Glide.with(holder.itemView.getContext())
-                        .load(item.getStudentPhoto())
-                        .circleCrop()
-                        .into(holder.imgProfile);
+                Glide.with(holder.itemView.getContext()).load(item.getStudentPhoto()).circleCrop().into(holder.imgProfile);
             } else {
                 holder.imgProfile.setImageResource(R.mipmap.ic_launcher);
             }
 
-            // CTA Buttons
-            holder.btnApprove.setOnClickListener(v -> updateStatus(item.getEnrollmentId(), "approved"));
-            holder.btnDecline.setOnClickListener(v -> updateStatus(item.getEnrollmentId(), "rejected"));
+            // Hide buttons since we rely on Swipe now, or keep them as fallback
+            holder.btnApprove.setVisibility(View.GONE);
+            holder.btnDecline.setVisibility(View.GONE);
         }
 
-        @Override
-        public int getItemCount() {
-            return list.size();
-        }
+        @Override public int getItemCount() { return list.size(); }
 
         class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvName, tvClass;
-            ImageView imgProfile;
+            TextView tvName, tvClass; ImageView imgProfile;
             MaterialButton btnApprove, btnDecline;
-
             public ViewHolder(@NonNull View v) {
                 super(v);
                 tvName = v.findViewById(R.id.tvStudentName);

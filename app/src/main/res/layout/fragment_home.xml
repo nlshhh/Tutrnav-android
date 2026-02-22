@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#6555C0"
+    android:layout_marginHorizontal="15dp"
+    android:background="@android:color/transparent"
     android:fillViewport="true"
     android:scrollbars="none">
 
@@ -18,10 +19,10 @@
             android:id="@+id/searchCard"
             android:layout_width="match_parent"
             android:layout_height="55dp"
-            android:layout_marginHorizontal="24dp"
+            android:layout_marginHorizontal="0dp"
             android:layout_marginTop="20dp"
-            app:cardCornerRadius="20dp"
-            app:cardBackgroundColor="#52439A"
+            app:cardCornerRadius="35dp"
+            app:cardBackgroundColor="#44000000"
             app:cardElevation="0dp"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -31,22 +32,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center_vertical"
-                android:paddingHorizontal="20dp">
+                android:paddingHorizontal="25dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Find your tutor..."
-                    android:textColor="#BDBDBD"
+                    android:textColor="#44000000"
                     android:textSize="16sp"
                     android:fontFamily="sans-serif-medium"/>
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_search"
-                    app:tint="#BDBDBD" />
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:src="@drawable/ic_search"
+                    app:tint="#FFFFFFFF" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
@@ -61,7 +62,7 @@
             android:fontFamily="sans-serif-black"
             android:letterSpacing="0.02"
             android:layout_marginTop="30dp"
-            android:layout_marginStart="24dp"
+            android:layout_marginStart="0dp"
             app:layout_constraintTop_toBottomOf="@id/searchCard"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -82,7 +83,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <!-- Helper Layout for Item Generation (Repeated Pattern) -->
                 <!-- Item 1: Music -->
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -95,7 +95,7 @@
                         android:layout_height="65dp"
                         app:cardCornerRadius="22dp"
                         app:cardBackgroundColor="#FFD54F"
-                        app:cardElevation="4dp">
+                        app:cardElevation="0dp">
                         <ImageView
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
@@ -126,7 +126,7 @@
                         android:layout_height="65dp"
                         app:cardCornerRadius="22dp"
                         app:cardBackgroundColor="#4DB6AC"
-                        app:cardElevation="4dp">
+                        app:cardElevation="0dp">
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
@@ -158,7 +158,7 @@
                         android:layout_height="65dp"
                         app:cardCornerRadius="22dp"
                         app:cardBackgroundColor="#29B6F6"
-                        app:cardElevation="4dp"/>
+                        app:cardElevation="0dp"/>
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -168,8 +168,6 @@
                         android:textSize="13sp"
                         android:fontFamily="sans-serif-medium"/>
                 </LinearLayout>
-
-                <!-- Add more items here as needed... -->
 
             </LinearLayout>
         </HorizontalScrollView>
@@ -185,11 +183,11 @@
             android:fontFamily="sans-serif-black"
             android:letterSpacing="0.02"
             android:layout_marginTop="35dp"
-            android:layout_marginStart="24dp"
+            android:layout_marginStart="0dp"
             app:layout_constraintTop_toBottomOf="@id/hsvCategories"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <!-- 5. CAPSULE FILTERS (NEW) -->
+        <!-- 5. CAPSULE FILTERS -->
         <HorizontalScrollView
             android:id="@+id/hsvFilters"
             android:layout_width="match_parent"
@@ -205,7 +203,6 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <!-- Active Pill (Trending) -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -217,44 +214,42 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Trending"
-                        android:textColor="#6555C0"
+                        android:textColor="#FF000000"
                         android:textStyle="bold"
                         android:paddingHorizontal="20dp"
                         android:paddingVertical="10dp"
                         android:textSize="14sp"/>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Inactive Pill (Featured) -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:cardCornerRadius="50dp"
-                    app:cardBackgroundColor="#52439A"
+                    app:cardBackgroundColor="#44000000"
                     app:cardElevation="0dp"
                     android:layout_marginEnd="12dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Featured"
-                        android:textColor="#BDBDBD"
+                        android:textColor="#FFffffff"
                         android:paddingHorizontal="20dp"
                         android:paddingVertical="10dp"
                         android:textSize="14sp"/>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Inactive Pill (Nearby) -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:cardCornerRadius="50dp"
-                    app:cardBackgroundColor="#52439A"
+                    app:cardBackgroundColor="#44000000"
                     app:cardElevation="0dp"
                     android:layout_marginEnd="12dp">
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Nearby"
-                        android:textColor="#BDBDBD"
+                        android:textColor="#ffffffff"
                         android:paddingHorizontal="20dp"
                         android:paddingVertical="10dp"
                         android:textSize="14sp"/>
@@ -268,36 +263,13 @@
             android:id="@+id/vpDiscover"
             android:layout_width="match_parent"
             android:layout_height="240dp"
-            android:layout_marginTop="25dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="20dp"
             android:clipToPadding="false"
             android:clipChildren="false"
             android:paddingHorizontal="40dp"
             app:layout_constraintTop_toBottomOf="@id/hsvFilters"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-        <!-- 7. DOT INDICATORS (FIXED) -->
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@android:color/transparent"
-
-            app:tabBackground="@drawable/tab_selector"
-            app:tabIndicatorHeight="0dp"
-            app:tabRippleColor="@null"
-
-            app:tabGravity="center"
-            app:tabMinWidth="14dp"
-            app:tabMaxWidth="14dp"
-
-            app:tabPaddingStart="0dp"
-            app:tabPaddingEnd="0dp"
-            app:tabPaddingTop="0dp"
-            app:tabPaddingBottom="0dp"
-
-            app:layout_constraintTop_toBottomOf="@id/vpDiscover"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 

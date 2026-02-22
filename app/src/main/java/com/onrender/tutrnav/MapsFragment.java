@@ -1,6 +1,8 @@
 package com.onrender.tutrnav;
 
 import android.Manifest;
+import android.animation.ObjectAnimator;
+import android.animation.PropertyValuesHolder;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,7 +18,7 @@ import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout; // CRITICAL IMPORT
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -61,7 +63,7 @@ public class MapsFragment extends Fragment {
 
     // --- UI Views ---
     private TextView tvSheetPrice, tvSheetTitle, tvSheetSubject, tvSheetDesc;
-    private ImageView btnSheetToggle;
+    private ImageView btnSheetToggle, imgSheetCallIcon;
     private CardView btnMyLocation, btnSheetCall, btnSheetToggleCard, btnSearchMap;
     private MaterialButton btnEnroll, btnReport;
 
@@ -92,7 +94,7 @@ public class MapsFragment extends Fragment {
         mAuth = FirebaseAuth.getInstance();
 
         initViews(view);
-        setupMinimalistMap(); // CHANGED: New Clean Map Setup
+        setupMinimalistMap();
         setupBottomSheet();
         checkLocationPermission();
         fetchTuitions();
@@ -132,11 +134,12 @@ public class MapsFragment extends Fragment {
         tvSheetSubject = v.findViewById(R.id.tvSheetSubject);
         tvSheetDesc = v.findViewById(R.id.tvSheetDesc);
 
-        // Buttons
+        // Buttons & Icons
         btnSheetToggle = v.findViewById(R.id.btnSheetToggle);
         btnSheetToggleCard = v.findViewById(R.id.btnSheetToggleCard);
         btnMyLocation = v.findViewById(R.id.btnMyLocation);
         btnSheetCall = v.findViewById(R.id.btnSheetCall);
+        imgSheetCallIcon = v.findViewById(R.id.imgSheetCallIcon);
         btnSearchMap = v.findViewById(R.id.btnSearchMap);
 
         btnEnroll = v.findViewById(R.id.btnEnroll);
@@ -146,18 +149,23 @@ public class MapsFragment extends Fragment {
                 Toast.makeText(getContext(), "Search Filters coming soon!", Toast.LENGTH_SHORT).show());
     }
 
-    /**
-     * THE LEGENDARY CLEAN MAP SETUP
-     * Uses CartoDB Light tiles (No clutter) + Invert Matrix = Sleek Dark Road Map
-     */
-    /**
-     * THE PURPLE ACCENT MAP SETUP
-     */
-    /**
-     * HIGH CONTRAST NEON SETUP
-     * Land = Pitch Black
-     * Roads = Glowing Electric Purple
-     */
+    private void startRingingAnimation() {
+        if (imgSheetCallIcon == null) return;
+
+        imgSheetCallIcon.clearAnimation();
+
+        PropertyValuesHolder pvhRotate = PropertyValuesHolder.ofFloat("rotation",
+                0f, 15f, -15f, 15f, -15f, 0f);
+
+        ObjectAnimator animator = ObjectAnimator.ofPropertyValuesHolder(imgSheetCallIcon, pvhRotate);
+        animator.setDuration(1000);
+        animator.setRepeatCount(ObjectAnimator.INFINITE);
+        animator.setRepeatMode(ObjectAnimator.RESTART);
+        animator.setStartDelay(500);
+
+        animator.start();
+    }
+
     private void setupMinimalistMap() {
         XYTileSource darkCleanSource = new XYTileSource(
                 "CartoDB_Dark_No_Labels",
@@ -174,30 +182,22 @@ public class MapsFragment extends Fragment {
         map.setBuiltInZoomControls(false);
         map.setMultiTouchControls(true);
 
-        // =================================================================
-        // THE "ULTRA CONTRAST" MATRIX
-        // By increasing the scales significantly and keeping offsets near 0,
-        // we "clip" the dark values to black and "max out" the bright values.
-        // =================================================================
         float[] matrix = {
-                // R-Scale, G-Scale, B-Scale, A-Scale, Offset
-                2.8f, 0,    0,    0,   -10, // Red: Very high scale, negative offset to kill darks
-                0,    0.2f, 0,    0,   -10, // Green: Squashed to near zero for pure purple
-                0,    0,    5.0f, 0,   -10, // Blue: Extreme boost to make roads "Burn" blue-purple
-                0,    0,    0,    1,    0   // Alpha
+                2.8f, 0,    0,    0,   -10,
+                0,    0.2f, 0,    0,   -10,
+                0,    0,    5.0f, 0,   -10,
+                0,    0,    0,    1,    0
         };
 
         ColorMatrixColorFilter filter = new ColorMatrixColorFilter(matrix);
         map.getOverlayManager().getTilesOverlay().setColorFilter(filter);
 
-        // Map Overlays
         tuitionMarkersOverlay = new FolderOverlay();
         map.getOverlays().add(tuitionMarkersOverlay);
 
-        map.getController().setZoom(15.0); // Roads look better when zoomed in slightly more
+        map.getController().setZoom(15.0);
     }
 
-    // --- DATA LOADING ---
     private void fetchTuitions() {
         db.collection("tuitions").get().addOnSuccessListener(queryDocumentSnapshots -> {
             allTuitions.clear();
@@ -237,8 +237,8 @@ public class MapsFragment extends Fragment {
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
             marker.setTitle(t.getTitle());
 
-            // Gold Pin for contrast against dark map
-            Drawable icon = ContextCompat.getDrawable(requireContext(), android.R.drawable.ic_menu_myplaces);
+            // --- CHANGED: Using ic_pin for Tuitions ---
+            Drawable icon = ContextCompat.getDrawable(requireContext(), R.drawable.ic_pin);
             if(icon != null) {
                 icon.setTint(Color.parseColor("#FFCA28"));
                 marker.setIcon(icon);
@@ -256,7 +256,6 @@ public class MapsFragment extends Fragment {
         map.invalidate();
     }
 
-    // --- BOTTOM SHEET UI LOGIC ---
     private void populateBottomSheet(TuitionModel t) {
         tvSheetPrice.setText("₹" + t.getFee());
         tvSheetTitle.setText(t.getTitle());
@@ -266,6 +265,8 @@ public class MapsFragment extends Fragment {
                 : (t.getSubject() != null ? t.getSubject() : "General");
         tvSheetSubject.setText(sub);
         tvSheetDesc.setText(t.getDescription());
+
+        startRingingAnimation();
 
         btnSheetCall.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_DIAL);
@@ -353,17 +354,16 @@ public class MapsFragment extends Fragment {
         bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
             @Override
             public void onStateChanged(@NonNull View bottomSheet, int newState) {
-                if (newState == BottomSheetBehavior.STATE_EXPANDED) {
-                    btnSheetToggle.setRotation(180);
-                } else {
-                    btnSheetToggle.setRotation(0);
-                }
+                // Kept empty
             }
-            @Override public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
+
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                btnSheetToggle.setRotation(slideOffset * 180);
+            }
         });
     }
 
-    // --- LOCATION ---
     private void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_REQUEST_CODE);
@@ -386,8 +386,8 @@ public class MapsFragment extends Fragment {
         locationOverlay = new MyLocationNewOverlay(new GpsMyLocationProvider(requireContext()), map);
         locationOverlay.enableMyLocation();
 
-        // Custom Cyan User Icon
-        Bitmap personIcon = getBitmapFromVectorDrawable(requireContext(), android.R.drawable.ic_menu_mylocation, "#00E5FF");
+        // --- CHANGED: Using ic_locator for User ---
+        Bitmap personIcon = getBitmapFromVectorDrawable(requireContext(), R.drawable.ic_locator, "#00E5FF");
         if (personIcon != null) {
             locationOverlay.setPersonIcon(personIcon);
             locationOverlay.setDirectionIcon(personIcon);
@@ -432,6 +432,7 @@ public class MapsFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if (map != null) map.onResume();
+        if (imgSheetCallIcon != null) startRingingAnimation();
     }
 
     @Override

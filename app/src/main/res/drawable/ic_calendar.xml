@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Top binding rings (Opacity 50%) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.5"
+        android:pathData="M7 6a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v2a1 1 0 0 1-.999 1zm10 0a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v2a1 1 0 0 1-.999 1z"/>
+
+    <!-- Top header bar (Solid) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M19 4h-1v1a1 1 0 0 1-2 0V4H8v1a1 1 0 0 1-2 0V4H5a3 3 0 0 0-3 3v2h20V7a3 3 0 0 0-3-3"/>
+
+    <!-- The 6 Solid Dots (Mathematically converted from SVG <circle> to Android <path>) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 7,12 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2
+                          M 7,16 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2
+                          M 12,12 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2
+                          M 12,16 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2
+                          M 17,12 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2
+                          M 17,16 a 1,1 0 1,0 0,2 a 1,1 0 1,0 0,-2"/>
+
+    <!-- Main calendar body with cutout holes (Opacity 50%) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.5"
+        android:pathData="M2 9v10a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V9zm5 9a1 1 0 1 1 0-2a1 1 0 0 1 0 2m0-4a1 1 0 1 1 0-2a1 1 0 0 1 0 2m5 4a1 1 0 1 1 0-2a1 1 0 0 1 0 2m0-4a1 1 0 1 1 0-2a1 1 0 0 1 0 2m5 4a1 1 0 1 1 0-2a1 1 0 0 1 0 2m0-4a1 1 0 1 1 0-2a1 1 0 0 1 0 2"/>
+
+</vector>

@@ -3,47 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#6555C0">
+    android:layout_marginHorizontal="15dp"
+    android:background="@android:color/transparent">
 
-    <!-- 1. HEADER TITLE -->
-    <TextView
-        android:id="@+id/tvHeader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="40dp"
-        android:text="Notifications"
-        android:textColor="#FFFFFF"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/tvSubHeader"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Updates from your classes"
-        android:textColor="#D1C4E9"
-        android:textSize="14sp"
-        app:layout_constraintStart_toStartOf="@id/tvHeader"
-        app:layout_constraintTop_toBottomOf="@id/tvHeader" />
-
-    <!-- 2. RECYCLER VIEW -->
-    <!-- paddingBottom="100dp" is CRITICAL so content isn't hidden behind the bottom nav -->
+    <!-- 1. RECYCLER VIEW -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvNotifications"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:paddingTop="10dp"
-        android:paddingBottom="100dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="120dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvSubHeader" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- 3. EMPTY STATE (Centered) -->
+    <!-- 2. EMPTY STATE (Centered) -->
     <!-- Toggled visible/gone by Java code -->
     <LinearLayout
         android:id="@+id/emptyStateContainer"
@@ -86,7 +62,7 @@
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- 4. LOADING SPINNER -->
+    <!-- 3. LOADING SPINNER -->
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"

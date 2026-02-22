@@ -1,12 +1,10 @@
 package com.onrender.tutrnav;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
-import android.content.Context;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,19 +17,18 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -41,27 +38,34 @@ import java.util.Map;
 
 public class TeacherScheduleFragment extends Fragment {
 
-    // --- UI Components ---
+    // UI
     private RecyclerView rvSchedule;
     private ChipGroup chipGroup;
     private ExtendedFloatingActionButton fabBroadcast;
-    private LinearLayout layoutEmptyState;
-    private TextView tvTotalStudents, tvTotalClasses;
+    private LinearLayout layoutEmptyState, layoutStandardHeader, layoutSelectionMode;
+    private TextView tvSelectionCount, tvEmptyText;
+    private EditText etSearchStudent;
+    private ImageView btnCloseSelection, btnSelectAll;
 
-    // --- Data ---
+    // Data Engine
+    private TeacherViewModel viewModel;
     private TeacherScheduleAdapter adapter;
-    private final List<EnrollmentModel> allEnrollments = new ArrayList<>();
-    private final List<EnrollmentModel> filteredList = new ArrayList<>();
-    private final Map<String, String> tuitionIdToTitleMap = new HashMap<>();
+    private final List<EnrollmentModel> activeStudents = new ArrayList<>();
+    private final List<EnrollmentModel> displayList = new ArrayList<>();
 
-    // --- Firebase ---
-    private FirebaseFirestore db;
-    private FirebaseAuth mAuth;
-    private ListenerRegistration enrollmentsListener;
-
-    // --- State ---
+    // State
     private String selectedTuitionId = "ALL";
     private String selectedTuitionTitle = "All Students";
+    private String currentSearchQuery = "";
+    private boolean isSelectionMode = false;
+    private final List<EnrollmentModel> selectedStudents = new ArrayList<>();
+
+    // --- 🛠️ FIX: MOVED INTERFACE HERE TO FIX "Illegal static declaration" ---
+    public interface OnStudentInteractListener {
+        void onMessageClick(EnrollmentModel student);
+        void onLongPress(EnrollmentModel student);
+        void onTap(EnrollmentModel student);
+    }
 
     @Nullable
     @Override
@@ -69,120 +73,134 @@ public class TeacherScheduleFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_teacher_schedule, container, false);
 
         initViews(view);
-
-        db = FirebaseFirestore.getInstance();
-        mAuth = FirebaseAuth.getInstance();
-
         setupRecyclerView();
-        setupBroadcastButton();
+        setupSearchAndListeners();
 
-        if (mAuth.getCurrentUser() != null) {
-            fetchTuitionsAndStudents();
-        }
+        // Bind to centralized ViewModel
+        viewModel = new ViewModelProvider(requireActivity()).get(TeacherViewModel.class);
+        observeData();
 
         return view;
     }
 
-    private void initViews(View view) {
-        rvSchedule = view.findViewById(R.id.rvTeacherSchedule);
-        chipGroup = view.findViewById(R.id.chipGroupTuitions);
-        fabBroadcast = view.findViewById(R.id.fabBroadcastAll);
-        layoutEmptyState = view.findViewById(R.id.layoutEmptyState);
-        tvTotalStudents = view.findViewById(R.id.tvTotalStudents);
-        tvTotalClasses = view.findViewById(R.id.tvTotalClasses);
+    private void initViews(View v) {
+        rvSchedule = v.findViewById(R.id.rvTeacherSchedule);
+        chipGroup = v.findViewById(R.id.chipGroupTuitions);
+        fabBroadcast = v.findViewById(R.id.fabBroadcast);
+        layoutEmptyState = v.findViewById(R.id.layoutEmptyState);
+        tvEmptyText = v.findViewById(R.id.tvEmptyText);
+
+        // Header views
+        layoutStandardHeader = v.findViewById(R.id.layoutStandardHeader);
+        layoutSelectionMode = v.findViewById(R.id.layoutSelectionMode);
+        tvSelectionCount = v.findViewById(R.id.tvSelectionCount);
+        btnCloseSelection = v.findViewById(R.id.btnCloseSelection);
+        btnSelectAll = v.findViewById(R.id.btnSelectAll);
+        etSearchStudent = v.findViewById(R.id.etSearchStudent);
     }
 
-    private void setupRecyclerView() {
-        rvSchedule.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new TeacherScheduleAdapter(requireContext(), filteredList, this::showComposeDialog);
-        rvSchedule.setAdapter(adapter);
-    }
+    private void setupSearchAndListeners() {
+        etSearchStudent.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                currentSearchQuery = s.toString().toLowerCase().trim();
+                applyFilters();
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
 
-    private void setupBroadcastButton() {
-        fabBroadcast.setOnClickListener(v -> {
-            if (filteredList.isEmpty()) {
-                Toast.makeText(getContext(), "No students to message.", Toast.LENGTH_SHORT).show();
+        btnCloseSelection.setOnClickListener(v -> toggleSelectionMode(false));
+
+        btnSelectAll.setOnClickListener(v -> {
+            if (selectedStudents.size() == displayList.size()) {
+                selectedStudents.clear(); // Deselect all
             } else {
-                // Pass null to indicate a BROADCAST to the selected group
-                showComposeDialog(null);
+                selectedStudents.clear();
+                selectedStudents.addAll(displayList); // Select all
+            }
+            updateSelectionUI();
+            adapter.notifyDataSetChanged();
+        });
+
+        fabBroadcast.setOnClickListener(v -> {
+            if (isSelectionMode) {
+                if (selectedStudents.isEmpty()) {
+                    Toast.makeText(getContext(), "Select at least 1 student", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                openBottomSheetMessage(selectedStudents, "Custom Selection");
+            } else {
+                if (displayList.isEmpty()) {
+                    Toast.makeText(getContext(), "No students to message.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                openBottomSheetMessage(displayList, selectedTuitionTitle);
             }
         });
     }
 
-    // --- FIREBASE DATA FETCHING ---
-    private void fetchTuitionsAndStudents() {
-        String uid = mAuth.getCurrentUser().getUid();
+    private void setupRecyclerView() {
+        rvSchedule.setLayoutManager(new LinearLayoutManager(getContext()));
+        adapter = new TeacherScheduleAdapter(displayList, new OnStudentInteractListener() {
+            @Override
+            public void onMessageClick(EnrollmentModel student) {
+                List<EnrollmentModel> target = new ArrayList<>(); target.add(student);
+                openBottomSheetMessage(target, student.getStudentName());
+            }
 
-        // 1. Fetch Teacher's Tuitions to build the exact Class List for Chips
-        db.collection("tuitions").whereEqualTo("teacherId", uid).get()
-                .addOnSuccessListener(snapshots -> {
-                    tuitionIdToTitleMap.clear();
-                    int activeClasses = 0;
+            @Override
+            public void onLongPress(EnrollmentModel student) {
+                if (!isSelectionMode) toggleSelectionMode(true);
+                toggleStudentSelection(student);
+            }
 
-                    for (DocumentSnapshot doc : snapshots) {
-                        TuitionModel t = doc.toObject(TuitionModel.class);
-                        if (t != null) {
-                            tuitionIdToTitleMap.put(doc.getId(), t.getTitle());
-                            activeClasses++;
-                        }
-                    }
-                    tvTotalClasses.setText(String.valueOf(activeClasses));
-
-                    // 2. Fetch Enrollments once tuitions are mapped
-                    fetchEnrollments(uid);
-                })
-                .addOnFailureListener(e -> Toast.makeText(getContext(), "Failed to load classes", Toast.LENGTH_SHORT).show());
+            @Override
+            public void onTap(EnrollmentModel student) {
+                if (isSelectionMode) toggleStudentSelection(student);
+            }
+        });
+        rvSchedule.setAdapter(adapter);
     }
 
-    @SuppressLint("SetTextI18n")
-    private void fetchEnrollments(String uid) {
-        enrollmentsListener = db.collection("enrollments")
-                .whereEqualTo("teacherId", uid)
-                .whereEqualTo("status", "approved")
-                .addSnapshotListener((value, error) -> {
-                    if (error != null) return;
-
-                    if (value != null) {
-                        allEnrollments.clear();
-                        for (DocumentSnapshot doc : value) {
-                            EnrollmentModel model = doc.toObject(EnrollmentModel.class);
-                            if (model != null) {
-                                // Ensure Title is accurate based on live Tuition map
-                                if (tuitionIdToTitleMap.containsKey(model.getTuitionId())) {
-                                    model.setTuitionTitle(tuitionIdToTitleMap.get(model.getTuitionId()));
-                                }
-                                allEnrollments.add(model);
-                            }
-                        }
-                        tvTotalStudents.setText(String.valueOf(allEnrollments.size()));
-
-                        buildFilterChips();
-                        filterList(selectedTuitionId);
-                    }
-                });
-    }
-
-    // --- UI: CHIPS & FILTERING ---
-    private void buildFilterChips() {
-        chipGroup.removeAllViews();
-
-        // Always add "ALL" if there are students
-        if (!allEnrollments.isEmpty()) {
-            addChip("ALL", "All Students");
-        }
-
-        // Add dynamically loaded classes
-        for (Map.Entry<String, String> entry : tuitionIdToTitleMap.entrySet()) {
-            // Only add chip if there are actual students in this class
-            boolean hasStudents = false;
-            for (EnrollmentModel e : allEnrollments) {
-                if (entry.getKey().equals(e.getTuitionId())) {
-                    hasStudents = true;
-                    break;
+    private void observeData() {
+        viewModel.getEnrollments().observe(getViewLifecycleOwner(), enrollments -> {
+            activeStudents.clear();
+            for (EnrollmentModel e : enrollments) {
+                if ("approved".equals(e.getStatus())) {
+                    activeStudents.add(e);
                 }
             }
-            if (hasStudents) {
-                addChip(entry.getKey(), entry.getValue());
+            buildFilterChips();
+            applyFilters();
+        });
+    }
+
+    private void buildFilterChips() {
+        chipGroup.removeAllViews();
+        if (!activeStudents.isEmpty()) addChip("ALL", "All Students");
+
+        List<TuitionModel> classes = viewModel.getTuitions().getValue();
+        if (classes != null) {
+            for (TuitionModel t : classes) {
+
+                // 🛠️ THE FIX: Skip corrupted Firestore documents that are missing an ID
+                if (t.getTuitionId() == null) continue;
+
+                // Ensure chip only shows if class has approved students
+                boolean hasStudents = false;
+                for (EnrollmentModel e : activeStudents) {
+                    if (t.getTuitionId().equals(e.getTuitionId())) {
+                        hasStudents = true;
+                        break;
+                    }
+                }
+
+                // Fallback for missing titles
+                String title = t.getTitle() != null ? t.getTitle() : "Unnamed Class";
+
+                if (hasStudents) {
+                    addChip(t.getTuitionId(), title);
+                }
             }
         }
     }
@@ -192,49 +210,41 @@ public class TeacherScheduleFragment extends Fragment {
         chip.setText(label);
         chip.setCheckable(true);
         chip.setClickable(true);
-
-        // Premium Chip Styling
-        chip.setChipBackgroundColorResource(R.color.white);
+        chip.setChipBackgroundColorResource(android.R.color.white);
         chip.setTextColor(Color.parseColor("#2E2345"));
 
-        chip.setOnCheckedChangeListener((buttonView, isChecked) -> {
+        chip.setOnCheckedChangeListener((btn, isChecked) -> {
             if (isChecked) {
                 selectedTuitionId = id;
                 selectedTuitionTitle = label;
-                filterList(id);
+                applyFilters();
             }
         });
-
-        if (id.equals(selectedTuitionId)) {
-            chip.setChecked(true);
-        }
-
+        if (id.equals(selectedTuitionId)) chip.setChecked(true);
         chipGroup.addView(chip);
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private void filterList(String tuitionId) {
-        filteredList.clear();
+    private void applyFilters() {
+        displayList.clear();
+        for (EnrollmentModel m : activeStudents) {
+            boolean matchesClass = "ALL".equals(selectedTuitionId) || selectedTuitionId.equals(m.getTuitionId());
+            boolean matchesSearch = currentSearchQuery.isEmpty() ||
+                    (m.getStudentName() != null && m.getStudentName().toLowerCase().contains(currentSearchQuery));
+            if (matchesClass && matchesSearch) displayList.add(m);
+        }
 
-        if ("ALL".equals(tuitionId)) {
-            filteredList.addAll(allEnrollments);
-            fabBroadcast.setText("Broadcast to All");
-            fabBroadcast.setIconResource(android.R.drawable.ic_menu_send);
-        } else {
-            for (EnrollmentModel m : allEnrollments) {
-                if (tuitionId.equals(m.getTuitionId())) {
-                    filteredList.add(m);
-                }
-            }
-            fabBroadcast.setText("Message Class");
-            fabBroadcast.setIconResource(android.R.drawable.ic_menu_sort_by_size);
+        // Smart FAB Update
+        if (!isSelectionMode) {
+            fabBroadcast.setText("ALL".equals(selectedTuitionId) ? "Broadcast to All" : "Message Class");
+            fabBroadcast.setIconResource("ALL".equals(selectedTuitionId) ? android.R.drawable.ic_menu_send : android.R.drawable.ic_menu_sort_by_size);
         }
 
         adapter.notifyDataSetChanged();
 
-        // Empty State Handler
-        if (filteredList.isEmpty()) {
+        if (displayList.isEmpty()) {
             layoutEmptyState.setVisibility(View.VISIBLE);
+            tvEmptyText.setText(currentSearchQuery.isEmpty() ? "No students in this class" : "No results for '" + currentSearchQuery + "'");
             rvSchedule.setVisibility(View.GONE);
         } else {
             layoutEmptyState.setVisibility(View.GONE);
@@ -242,102 +252,103 @@ public class TeacherScheduleFragment extends Fragment {
         }
     }
 
-    // --- MESSAGING LOGIC ---
-    private void showComposeDialog(@Nullable EnrollmentModel targetStudent) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_send_message, null);
-        builder.setView(dialogView);
+    // --- MULTI-SELECTION LOGIC ---
+    private void toggleSelectionMode(boolean active) {
+        isSelectionMode = active;
+        selectedStudents.clear();
+        adapter.notifyDataSetChanged(); // UI update applied natively through adapter bindings
 
-        AlertDialog dialog = builder.create();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            dialog.getWindow().getAttributes().windowAnimations = android.R.style.Animation_Dialog;
-        }
+        layoutStandardHeader.setVisibility(active ? View.GONE : View.VISIBLE);
+        layoutSelectionMode.setVisibility(active ? View.VISIBLE : View.GONE);
 
-        TextView title = dialogView.findViewById(R.id.tvDialogTitle);
-        EditText etMsg = dialogView.findViewById(R.id.etMessage);
-        MaterialButton btnSend = dialogView.findViewById(R.id.btnSend);
-        MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
-
-        if (targetStudent == null) {
-            title.setText("Broadcast: " + selectedTuitionTitle);
-            btnSend.setText("Broadcast");
+        if (active) {
+            fabBroadcast.setIconResource(android.R.drawable.ic_menu_send);
         } else {
-            title.setText("Message " + targetStudent.getStudentName());
-            btnSend.setText("Send");
+            applyFilters(); // Reset FAB text
+        }
+        updateSelectionUI();
+    }
+
+    private void toggleStudentSelection(EnrollmentModel student) {
+        if (selectedStudents.contains(student)) selectedStudents.remove(student);
+        else selectedStudents.add(student);
+
+        if (selectedStudents.isEmpty() && isSelectionMode) toggleSelectionMode(false);
+        else updateSelectionUI();
+
+        adapter.notifyDataSetChanged();
+    }
+
+    private void updateSelectionUI() {
+        tvSelectionCount.setText(selectedStudents.size() + " Selected");
+        fabBroadcast.setText("Message (" + selectedStudents.size() + ")");
+    }
+
+    // --- LEGENDARY BOTTOM SHEET MESSAGING ---
+    @SuppressLint("SetTextI18n")
+    private void openBottomSheetMessage(List<EnrollmentModel> targets, String titleOverride) {
+        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
+        View sheetView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_bottom_message, null);
+        dialog.setContentView(sheetView);
+
+        // Ensure transparent background applies correctly to show our beautiful rounded XML background
+        if (sheetView.getParent() != null) {
+            ((View) sheetView.getParent()).setBackgroundColor(Color.TRANSPARENT);
         }
 
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        TextView tvTitle = sheetView.findViewById(R.id.tvSheetTitle);
+        TextView tvSub = sheetView.findViewById(R.id.tvSheetSubtitle);
+        EditText etMsg = sheetView.findViewById(R.id.etMessageBody);
+        MaterialButton btnSend = sheetView.findViewById(R.id.btnSendMessage);
+
+        // Quick Reply Chips
+        sheetView.findViewById(R.id.chipQuick1).setOnClickListener(v -> etMsg.setText(((Chip)v).getText()));
+        sheetView.findViewById(R.id.chipQuick2).setOnClickListener(v -> etMsg.setText(((Chip)v).getText()));
+        sheetView.findViewById(R.id.chipQuick3).setOnClickListener(v -> etMsg.setText(((Chip)v).getText()));
+
+        tvTitle.setText(targets.size() == 1 ? "Message " + titleOverride : "Broadcast");
+        tvSub.setText(targets.size() == 1 ? "Direct Message" : "Sending to " + targets.size() + " students in " + titleOverride);
 
         btnSend.setOnClickListener(v -> {
-            String msgText = etMsg.getText().toString().trim();
-            if (TextUtils.isEmpty(msgText)) {
-                etMsg.setError("Cannot be empty");
-                return;
+            String txt = etMsg.getText().toString().trim();
+            if (txt.isEmpty()) { etMsg.setError("Cannot be empty"); return; }
+
+            String senderId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+            String senderName = FirebaseAuth.getInstance().getCurrentUser().getDisplayName();
+
+            // Loop through selected targets and dispatch messages (Simplified for demo)
+            for (EnrollmentModel target : targets) {
+                Map<String, Object> msg = new HashMap<>();
+                msg.put("text", txt);
+                msg.put("senderId", senderId);
+                msg.put("senderName", senderName != null ? senderName : "Teacher");
+                msg.put("studentId", target.getStudentId());
+                msg.put("tuitionId", target.getTuitionId());
+                msg.put("timestamp", new Date());
+                msg.put("type", targets.size() == 1 ? "PRIVATE" : "BROADCAST");
+
+                FirebaseFirestore.getInstance().collection("messages").add(msg);
             }
-            sendMessage(msgText, targetStudent, dialog);
+
+            Toast.makeText(getContext(), "Message Sent Successfully!", Toast.LENGTH_SHORT).show();
+            if (isSelectionMode) toggleSelectionMode(false);
+            dialog.dismiss();
         });
 
         dialog.show();
     }
 
-    private void sendMessage(String text, @Nullable EnrollmentModel target, AlertDialog dialog) {
-        FirebaseUser user = mAuth.getCurrentUser();
-        if (user == null) return;
-
-        Map<String, Object> msgMap = new HashMap<>();
-        msgMap.put("text", text);
-        msgMap.put("senderId", user.getUid());
-        msgMap.put("senderName", user.getDisplayName() != null ? user.getDisplayName() : "Teacher");
-        msgMap.put("senderPhoto", user.getPhotoUrl() != null ? user.getPhotoUrl().toString() : "");
-        msgMap.put("timestamp", new Date());
-
-        if (target != null) {
-            // Private Message
-            msgMap.put("studentId", target.getStudentId());
-            msgMap.put("tuitionId", target.getTuitionId());
-            msgMap.put("type", "PRIVATE");
-        } else {
-            // Broadcast
-            msgMap.put("tuitionId", selectedTuitionId);
-            msgMap.put("tuitionTitle", selectedTuitionTitle);
-            msgMap.put("type", "BROADCAST");
-        }
-
-        db.collection("messages").add(msgMap)
-                .addOnSuccessListener(docRef -> {
-                    Toast.makeText(getContext(), "Sent Successfully!", Toast.LENGTH_SHORT).show();
-                    dialog.dismiss();
-                })
-                .addOnFailureListener(e -> Toast.makeText(getContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        if (enrollmentsListener != null) {
-            enrollmentsListener.remove(); // Prevent Memory Leaks
-        }
-    }
-
-    // --- INTERFACES & ADAPTER ---
-    public interface OnStudentClickListener {
-        void onClick(EnrollmentModel student);
-    }
-
-    public static class TeacherScheduleAdapter extends RecyclerView.Adapter<TeacherScheduleAdapter.ViewHolder> {
+    // --- ADAPTER ---
+    public class TeacherScheduleAdapter extends RecyclerView.Adapter<TeacherScheduleAdapter.ViewHolder> {
         private final List<EnrollmentModel> items;
-        private final OnStudentClickListener listener;
-        private final Context context;
+        private final OnStudentInteractListener listener;
 
-        public TeacherScheduleAdapter(Context context, List<EnrollmentModel> items, OnStudentClickListener listener) {
-            this.context = context;
+        public TeacherScheduleAdapter(List<EnrollmentModel> items, OnStudentInteractListener listener) {
             this.items = items;
             this.listener = listener;
         }
 
-        @NonNull
-        @Override
+        @NonNull @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             return new ViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.item_schedule, parent, false));
         }
@@ -347,40 +358,45 @@ public class TeacherScheduleFragment extends Fragment {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             EnrollmentModel item = items.get(position);
 
-            // Re-purposing the schedule card to look great for Students
+            TuitionModel classData = viewModel.getTuitionById(item.getTuitionId());
+
             holder.tvSubjectName.setText(item.getStudentName() != null ? item.getStudentName() : "Unknown Student");
-            holder.tvTopic.setText(item.getTuitionTitle() != null ? item.getTuitionTitle() : "Enrolled Class");
+            holder.tvTopic.setText(classData != null ? classData.getTitle() : "Enrolled Class");
 
             holder.tvStatus.setText("ACTIVE");
             holder.tvStatus.setTextColor(Color.parseColor("#4CAF50"));
-
             holder.tvTimeStart.setText("Student");
             holder.tvDuration.setVisibility(View.GONE);
-
-            holder.tvTutorName.setText("Tap to interact");
-            holder.tvLocation.setVisibility(View.GONE); // Hide location icon logic for students
+            holder.tvTutorName.setText(classData != null && classData.getTime() != null ? classData.getTime() : "Timings TBD");
+            holder.tvLocation.setVisibility(View.GONE);
 
             if (item.getStudentPhoto() != null && !item.getStudentPhoto().isEmpty()) {
-                Glide.with(context).load(item.getStudentPhoto()).placeholder(R.mipmap.ic_launcher).circleCrop().into(holder.imgProfile);
+                Glide.with(holder.itemView.getContext()).load(item.getStudentPhoto()).circleCrop().into(holder.imgProfile);
             } else {
                 holder.imgProfile.setImageResource(R.mipmap.ic_launcher);
             }
 
+            // Visual feedback for selection
+            boolean isSelected = selectedStudents.contains(item);
+
+            // 🛠️ FIX: References the Fragment's top level `isSelectionMode` variable instead of an unresolvable inner one
+            holder.itemView.setAlpha(isSelectionMode && !isSelected ? 0.6f : 1.0f);
+            holder.itemView.setBackgroundColor(isSelected ? Color.parseColor("#33FFCA28") : Color.TRANSPARENT);
+
+            holder.btnAction.setVisibility(isSelectionMode ? View.GONE : View.VISIBLE);
             holder.btnAction.setText("Message");
             holder.btnAction.setIconResource(android.R.drawable.ic_menu_send);
+            holder.btnAction.setOnClickListener(v -> listener.onMessageClick(item));
 
-            holder.btnAction.setOnClickListener(v -> listener.onClick(item));
-            holder.itemView.setOnClickListener(v -> listener.onClick(item));
+            holder.itemView.setOnLongClickListener(v -> { listener.onLongPress(item); return true; });
+            holder.itemView.setOnClickListener(v -> listener.onTap(item));
         }
 
-        @Override
-        public int getItemCount() { return items.size(); }
+        @Override public int getItemCount() { return items.size(); }
 
-        static class ViewHolder extends RecyclerView.ViewHolder {
+        class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvSubjectName, tvTopic, tvStatus, tvTimeStart, tvDuration, tvTutorName, tvLocation;
-            ImageView imgProfile;
-            MaterialButton btnAction;
-
+            ImageView imgProfile; MaterialButton btnAction;
             public ViewHolder(@NonNull View v) {
                 super(v);
                 tvSubjectName = v.findViewById(R.id.tvSubjectName);

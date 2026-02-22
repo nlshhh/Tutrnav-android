@@ -7,7 +7,6 @@ import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewParent;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -19,7 +18,6 @@ import androidx.viewpager2.widget.CompositePageTransformer;
 import androidx.viewpager2.widget.MarginPageTransformer;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.google.android.material.tabs.TabLayout;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -29,8 +27,7 @@ import java.util.List;
 public class HomeFragment extends Fragment {
 
     private ViewPager2 vpDiscover;
-    private TabLayout tabLayout;
-    private Handler sliderHandler = new Handler(Looper.getMainLooper());
+    private final Handler sliderHandler = new Handler(Looper.getMainLooper());
     private SharedTuitionViewModel viewModel;
 
     // AESTHETIC CONFIGURATION
@@ -46,7 +43,6 @@ public class HomeFragment extends Fragment {
 
         viewModel = new ViewModelProvider(requireActivity()).get(SharedTuitionViewModel.class);
         vpDiscover = view.findViewById(R.id.vpDiscover);
-        tabLayout = view.findViewById(R.id.tabLayout);
 
         fetchTuitionsFromFirestore();
 
@@ -75,20 +71,21 @@ public class HomeFragment extends Fragment {
             viewModel.select(model);
             if (getActivity() instanceof StudentHomeActivity) {
                 ViewPager2 parentVP = getActivity().findViewById(R.id.viewPager);
-                parentVP.setCurrentItem(2, true);
+                if (parentVP != null) parentVP.setCurrentItem(2, true);
             }
         });
 
         vpDiscover.setAdapter(adapter);
 
-        // Infinite Scroll Math
+        // Infinite Scroll Math: Start perfectly in the middle
         int midPoint = Integer.MAX_VALUE / 2;
         int startPosition = midPoint - (midPoint % list.size());
         vpDiscover.setCurrentItem(startPosition, false);
 
         setupViewPagerAesthetics();
-        setupInfiniteDots(list.size());
+        setupSmartTouchHandling();
 
+        // Start Auto Slider
         sliderHandler.postDelayed(sliderRunnable, AUTO_SLIDE_DURATION);
     }
 
@@ -98,6 +95,7 @@ public class HomeFragment extends Fragment {
         vpDiscover.setClipChildren(false);
         vpDiscover.setOffscreenPageLimit(3);
 
+        // Visual Transformations (Scaling and Fading side cards)
         CompositePageTransformer transformer = new CompositePageTransformer();
         transformer.addTransformer(new MarginPageTransformer(20));
         transformer.addTransformer((page, position) -> {
@@ -106,90 +104,86 @@ public class HomeFragment extends Fragment {
             page.setAlpha(ALPHA_SIDE + r * (1 - ALPHA_SIDE));
         });
         vpDiscover.setPageTransformer(transformer);
+    }
 
-        // --- THE FIX ---
+    // --- THE LEGENDARY FIX FOR SCROLLVIEW + VIEWPAGER2 CONFLICT ---
+    private void setupSmartTouchHandling() {
         View child = vpDiscover.getChildAt(0);
         if (child instanceof RecyclerView) {
-            child.setOverScrollMode(RecyclerView.OVER_SCROLL_NEVER);
+            RecyclerView rv = (RecyclerView) child;
+            rv.setOverScrollMode(RecyclerView.OVER_SCROLL_NEVER);
 
-            child.setOnTouchListener((v, event) -> {
-                int action = event.getAction();
+            rv.addOnItemTouchListener(new RecyclerView.OnItemTouchListener() {
+                private float startX;
+                private float startY;
 
-                if (action == MotionEvent.ACTION_DOWN) {
-                    sliderHandler.removeCallbacks(sliderRunnable);
-                    // Force the ScrollView (and all parents) to stop intercepting
-                    notifyParentsToDisallowIntercept(v, true);
+                @Override
+                public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {
+                    switch (e.getAction()) {
+                        case MotionEvent.ACTION_DOWN:
+                            startX = e.getX();
+                            startY = e.getY();
+                            // 1. Instantly lock the parent ScrollView so it doesn't steal the touch
+                            vpDiscover.getParent().requestDisallowInterceptTouchEvent(true);
+                            // 2. Pause the auto-slider so it doesn't fight your finger
+                            sliderHandler.removeCallbacks(sliderRunnable);
+                            break;
 
-                } else if (action == MotionEvent.ACTION_MOVE) {
-                    // Keep forcing it during the move
-                    notifyParentsToDisallowIntercept(v, true);
+                        case MotionEvent.ACTION_MOVE:
+                            float dx = Math.abs(e.getX() - startX);
+                            float dy = Math.abs(e.getY() - startY);
 
-                } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                    sliderHandler.removeCallbacks(sliderRunnable);
-                    sliderHandler.postDelayed(sliderRunnable, AUTO_SLIDE_DURATION);
-                    // Release the lock
-                    notifyParentsToDisallowIntercept(v, false);
+                            // If the user is swiping UP/DOWN, unlock the parent ScrollView so the page scrolls
+                            if (dy > dx) {
+                                vpDiscover.getParent().requestDisallowInterceptTouchEvent(false);
+                            } else {
+                                // If swiping LEFT/RIGHT, keep the parent locked so the ViewPager swipes perfectly
+                                vpDiscover.getParent().requestDisallowInterceptTouchEvent(true);
+                            }
+                            break;
+
+                        case MotionEvent.ACTION_UP:
+                        case MotionEvent.ACTION_CANCEL:
+                            // Unlock parent and resume auto-slider when user lets go
+                            vpDiscover.getParent().requestDisallowInterceptTouchEvent(false);
+                            sliderHandler.removeCallbacks(sliderRunnable);
+                            sliderHandler.postDelayed(sliderRunnable, AUTO_SLIDE_DURATION);
+                            break;
+                    }
+
+                    // CRITICAL: Must return false so the inner RecyclerView still processes the drag!
+                    return false;
                 }
 
-                return false; // Allow ViewPager to handle the actual scroll
+                @Override
+                public void onTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {}
+                @Override
+                public void onRequestDisallowInterceptTouchEvent(boolean disallowIntercept) {}
             });
         }
     }
 
-    // Helper method to walk up the tree and tell EVERYONE to hands off
-    private void notifyParentsToDisallowIntercept(View view, boolean disallow) {
-        ViewParent parent = view.getParent();
-        while (parent != null) {
-            parent.requestDisallowInterceptTouchEvent(disallow);
-            parent = parent.getParent();
-        }
-    }
-
-    private void setupInfiniteDots(int realCount) {
-        tabLayout.removeAllTabs();
-        for (int i = 0; i < realCount; i++) {
-            tabLayout.addTab(tabLayout.newTab());
-        }
-
-        vpDiscover.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
-            @Override
-            public void onPageSelected(int position) {
-                int realPosition = position % realCount;
-                TabLayout.Tab tab = tabLayout.getTabAt(realPosition);
-                if (tab != null && !tab.isSelected()) {
-                    tab.select();
-                }
-            }
-        });
-
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                if (vpDiscover.getScrollState() == ViewPager2.SCROLL_STATE_IDLE) {
-                    int currentVPPos = vpDiscover.getCurrentItem();
-                    int currentRealPos = currentVPPos % realCount;
-                    int targetRealPos = tab.getPosition();
-                    int diff = targetRealPos - currentRealPos;
-                    if (diff != 0) {
-                        vpDiscover.setCurrentItem(currentVPPos + diff, true);
-                    }
-                }
-            }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {}
-        });
-    }
-
-    private Runnable sliderRunnable = new Runnable() {
+    private final Runnable sliderRunnable = new Runnable() {
         @Override
         public void run() {
-            if (vpDiscover != null) {
+            if (vpDiscover != null && vpDiscover.getAdapter() != null) {
+                // Smoothly slide to the next item
                 vpDiscover.setCurrentItem(vpDiscover.getCurrentItem() + 1, true);
                 sliderHandler.postDelayed(this, AUTO_SLIDE_DURATION);
             }
         }
     };
 
-    @Override public void onPause() { super.onPause(); sliderHandler.removeCallbacks(sliderRunnable); }
-    @Override public void onResume() { super.onResume(); sliderHandler.postDelayed(sliderRunnable, AUTO_SLIDE_DURATION); }
+    @Override
+    public void onPause() {
+        super.onPause();
+        sliderHandler.removeCallbacks(sliderRunnable);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        sliderHandler.removeCallbacks(sliderRunnable);
+        sliderHandler.postDelayed(sliderRunnable, AUTO_SLIDE_DURATION);
+    }
 }

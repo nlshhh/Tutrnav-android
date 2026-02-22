@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:propertyName="rotation"
+    android:duration="2700"
+    android:valueType="floatType"
+    android:repeatCount="infinite"
+    android:repeatMode="restart">
+
+    <!-- These match your SVG's keyTimes and rotation values PERFECTLY -->
+    <propertyValuesHolder android:propertyName="rotation">
+        <keyframe android:fraction="0.0" android:value="0.0" />
+        <keyframe android:fraction="0.035" android:value="15.0" />
+        <keyframe android:fraction="0.07" android:value="0.0" />
+        <keyframe android:fraction="0.105" android:value="-12.0" />
+        <keyframe android:fraction="0.14" android:value="0.0" />
+        <keyframe android:fraction="0.175" android:value="12.0" />
+        <keyframe android:fraction="0.21" android:value="0.0" />
+        <keyframe android:fraction="0.245" android:value="-15.0" />
+        <keyframe android:fraction="0.28" android:value="0.0" />
+        <keyframe android:fraction="1.0" android:value="0.0" />
+    </propertyValuesHolder>
+</objectAnimator>
