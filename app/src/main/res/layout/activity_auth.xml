@@ -29,9 +29,10 @@
     <!-- Replace src with your actual image later -->
     <ImageView
         android:id="@+id/imgIllustration"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:src="@mipmap/ic_launcher"
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        android:layout_marginTop="80dp"
+        android:src="@drawable/auth_ladki"
         app:layout_constraintBottom_toTopOf="@+id/bottomSheet"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
